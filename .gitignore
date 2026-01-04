@@ -205,3 +205,10 @@ cython_debug/
 marimo/_static/
 marimo/_lsp/
 __marimo__/
+
+# MySQL runtime data
+mysql/data/
+mysql/data/**
+
+server/paper/world*/
+server/active/world*/
