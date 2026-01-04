@@ -1,66 +1,58 @@
-from aiogram import Router, F
+import logging
+from aiogram import Router
 from aiogram.types import CallbackQuery
 
 from app.domain.access_service import AccessService
 from app.adapters.telegram.notifier import Notifier
-from app.config.settings import Settings
+from app.adapters.rcon.service import RCONService
 
 router = Router(name="admin_approve")
+logger = logging.getLogger("gatecraft.admin")
 
 
-def is_admin(settings: Settings, user_id: int) -> bool:
-    return user_id in settings.admin_ids
+@router.callback_query(lambda c: c.data and c.data.startswith("admin:approve:"))
+async def cb_approve(callback: CallbackQuery,
+                     access_service: AccessService,
+                     notifier: Notifier,
+                     rcon: RCONService):
+    admin_id = callback.from_user.id
+    request_id = int(callback.data.split(":")[2])
+    logger.info("Admin user_id=%s approving request_id=%s", admin_id, request_id)
 
-
-@router.callback_query(F.data.startswith("admin:approve:"))
-async def cb_approve(
-    callback: CallbackQuery,
-    access_service: AccessService,
-    notifier: Notifier,
-    settings: Settings,
-):
-    if not is_admin(settings, callback.from_user.id):
-        await callback.answer("Access denied", show_alert=True)
-        return
-
-    request_id = int(callback.data.split(":")[-1])
     req = await access_service.approve(request_id)
     if not req:
-        await callback.message.answer("⚠️ Request not found or already processed.")
-        await callback.answer()
-        return
+        logger.warning("Admin user_id=%s tried to approve non-existent request_id=%s", admin_id, request_id)
+        return await callback.answer("Request not found or already processed", show_alert=True)
 
-    await notifier.notify_player(
-        req["tg_user_id"],
-        f"✅ Approved! You are now whitelisted as <code>{req['nickname']}</code>."
-    )
+    nickname = req["nickname"]
+    tg_user_id = req["tg_user_id"]
+    logger.debug("Approved request_id=%s nickname=%s tg_user_id=%s by admin_id=%s", request_id, nickname, tg_user_id, admin_id)
 
-    await callback.message.answer(f"✅ Approved: <code>{req['nickname']}</code>")
-    await callback.answer()
+    rcon_ok = False
+    rcon_error = None
+    try:
+        await rcon.whitelist_add(nickname)
+        rcon_ok = True
+        logger.info("RCON whitelist add succeeded for nickname=%s", nickname)
+    except Exception as e:
+        rcon_error = str(e)
+        logger.exception("RCON whitelist add failed nick=%s tg_id=%s", nickname, tg_user_id)
 
+    # notify player
+    try:
+        await notifier.player_approved(tg_user_id, nickname)
+        logger.debug("Player notification sent to tg_user_id=%s for nickname=%s", tg_user_id, nickname)
+    except Exception:
+        logger.exception("Failed to notify player tg_id=%s nickname=%s", tg_user_id, nickname)
 
-@router.callback_query(F.data.startswith("admin:reject:"))
-async def cb_reject(
-    callback: CallbackQuery,
-    access_service: AccessService,
-    notifier: Notifier,
-    settings: Settings,
-):
-    if not is_admin(settings, callback.from_user.id):
-        await callback.answer("Access denied", show_alert=True)
-        return
+    # admin feedback
+    text = f"✅ Approved <code>{nickname}</code>\n"
+    if rcon_ok:
+        text += "🖥 Whitelist updated via RCON ✅"
+    else:
+        text += f"⚠️ Approved in DB, but RCON failed: <code>{rcon_error}</code>\n" \
+                f"Try /whitelist_add {nickname} later."
 
-    request_id = int(callback.data.split(":")[-1])
-    req = await access_service.reject(request_id)
-    if not req:
-        await callback.message.answer("⚠️ Request not found or already processed.")
-        await callback.answer()
-        return
-
-    await notifier.notify_player(
-        req["tg_user_id"],
-        f"❌ Rejected. Your request for <code>{req['nickname']}</code> was rejected."
-    )
-
-    await callback.message.answer(f"❌ Rejected: <code>{req['nickname']}</code>")
-    await callback.answer()
+    logger.info("Approval completed for request_id=%s nickname=%s rcon_ok=%s", request_id, nickname, rcon_ok)
+    await callback.message.answer(text)
+    await callback.answer("Approved ✅")

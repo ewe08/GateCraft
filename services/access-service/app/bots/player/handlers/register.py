@@ -49,15 +49,19 @@ async def fsm_receive_nickname(message: Message, state: FSMContext, access_servi
 
 
 async def handle_registration(message: Message, nickname: str, access_service: AccessService):
+    user_id = message.from_user.id
+    logger.debug("Handling registration for user_id=%s with nickname=%s", user_id, nickname)
+    
     if not is_valid_nickname(nickname):
-        logger.warning("User %s invalid nickname=%s", message.from_user.id, nickname)
+        logger.warning("User %s provided invalid nickname=%s", user_id, nickname)
         return await message.answer(INVALID_NICK_TEXT)
 
     try:
-        await access_service.register(message.from_user.id, nickname)
+        logger.debug("Submitting registration request for user_id=%s nickname=%s", user_id, nickname)
+        await access_service.register(user_id, nickname)
     except Exception as e:
-        logger.exception("Register failed: %s", e)
+        logger.exception("Registration failed for user_id=%s nickname=%s: %s", user_id, nickname, e)
         return await message.answer(SERVICE_UNAVAILABLE_TEXT)
 
-    logger.info("User %s registered nickname=%s", message.from_user.id, nickname)
+    logger.info("User %s successfully registered with nickname=%s", user_id, nickname)
     return await message.answer(REGISTER_SENT_TEXT)

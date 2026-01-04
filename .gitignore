@@ -212,3 +212,5 @@ mysql/data/**
 
 server/paper/world*/
 server/active/world*/
+
+server/active/

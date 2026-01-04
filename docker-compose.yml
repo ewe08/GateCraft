@@ -1,16 +1,60 @@
 services:
+  mc-server:
+    image: itzg/minecraft-server:java21
+    container_name: gatecraft-mc
+    restart: unless-stopped
+    env_file:
+      - ./server/active/docker.env
+    ports:
+      - "50010:25565"
+    volumes:
+      - ./server/active:/data
+    tty: true
+    stdin_open: true
+
   mysql:
     image: mysql:8.0
     container_name: gatecraft-mysql
+    restart: unless-stopped
     environment:
-      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
-      MYSQL_DATABASE: ${MYSQL_DATABASE}
-      MYSQL_USER: ${MYSQL_USER}
-      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
-      TZ: Europe/Amsterdam
-    ports:
-      - "3306:3306"
+      MYSQL_DATABASE: "${MYSQL_DATABASE}"
+      MYSQL_USER: "${MYSQL_USER}"
+      MYSQL_PASSWORD: "${MYSQL_PASSWORD}"
+      MYSQL_ROOT_PASSWORD: "${MYSQL_ROOT_PASSWORD}"
+
     volumes:
       - ./mysql/data:/var/lib/mysql
       - ./mysql/init:/docker-entrypoint-initdb.d
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "-uroot", "-proot_pw"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  access-service:
+    build:
+      context: ./services/access-service
+    container_name: gatecraft-access
     restart: unless-stopped
+    depends_on:
+      mysql:
+        condition: service_healthy
+      mc-server:
+        condition: service_started
+    environment:
+      PLAYER_BOT_TOKEN: "${PLAYER_BOT_TOKEN}"
+      ADMIN_BOT_TOKEN: "${ADMIN_BOT_TOKEN}"
+      ADMIN_IDS: "${ADMIN_IDS}"
+
+      MYSQL_HOST: "mysql"
+      MYSQL_PORT: "3306"
+      MYSQL_DATABASE: "${MYSQL_DATABASE}"
+      MYSQL_USER: "${MYSQL_USER}"
+      MYSQL_PASSWORD: "${MYSQL_PASSWORD}"
+
+      RCON_HOST: "mc-server"
+      RCON_PORT: "25575"
+      RCON_PASSWORD: "${RCON_PASSWORD}"
+      RCON_TIMEOUT: "3"
+
+      LOG_LEVEL: "INFO"

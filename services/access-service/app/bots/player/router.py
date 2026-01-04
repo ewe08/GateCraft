@@ -1,6 +1,6 @@
 from aiogram import Router
 
-from .handlers import start, register, status, online, dbdebug
+from .handlers import start, register, status, online
 from .middlewares.rate_limit import RateLimitMiddleware
 
 
@@ -14,8 +14,6 @@ def setup_player_router() -> Router:
     router.include_router(register.router)
     router.include_router(status.router)
     router.include_router(online.router)
-    router.include_router(dbdebug.router)
-
 
     return router
 
