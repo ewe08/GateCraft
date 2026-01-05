@@ -1,7 +1,8 @@
 import logging
 from aiogram import Router
 from aiogram.filters import Command
-from aiogram.types import Message
+from aiogram import F
+from aiogram.types import Message, CallbackQuery
 
 from app.container import access_service
 from app.adapters.rcon.service import RCONService
@@ -45,3 +46,10 @@ async def cmd_online(message: Message, rcon: RCONService):
     )
     logger.debug("Sent online list to user_id=%s with %d players", user_id, len(players))
     await message.answer(text)
+
+
+@router.callback_query(F.data == "player:online")
+async def cb_online(callback: CallbackQuery, rcon: RCONService):
+    # reuse the same logic as the message handler by calling it directly
+    await cmd_online(callback.message, rcon)
+    await callback.answer()
