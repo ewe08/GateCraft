@@ -59,3 +59,16 @@ STATUS_REJECTED_TEXT = (
 
 ONLINE_EMPTY_TEXT = "🟢 No players online right now."
 ONLINE_FORMAT_TEXT = "🟢 Online players ({count}):\n{players}"
+
+# Notifications sent directly to players by admin actions
+NOTIFY_APPROVED_TEXT = (
+    "✅ <b>Your request has been approved</b>\n"
+    "Nickname: <code>{nickname}</code>\n"
+    "You are whitelisted — you can join the server now!"
+)
+
+NOTIFY_REJECTED_TEXT = (
+    "❌ <b>Your request was rejected</b>\n"
+    "Nickname: <code>{nickname}</code>\n"
+    "If you think this is a mistake, contact the admins."
+)

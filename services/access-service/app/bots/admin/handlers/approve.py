@@ -5,6 +5,7 @@ from aiogram.types import CallbackQuery
 from app.domain.access_service import AccessService
 from app.adapters.telegram.notifier import Notifier
 from app.adapters.rcon.service import RCONService
+from app.bots.player.ui.messages import NOTIFY_APPROVED_TEXT
 
 router = Router(name="admin_approve")
 logger = logging.getLogger("gatecraft.admin")
@@ -40,7 +41,7 @@ async def cb_approve(callback: CallbackQuery,
 
     # notify player
     try:
-        await notifier.player_approved(tg_user_id, nickname)
+        await notifier.notify_player(tg_user_id, NOTIFY_APPROVED_TEXT.format(nickname=nickname))
         logger.debug("Player notification sent to tg_user_id=%s for nickname=%s", tg_user_id, nickname)
     except Exception:
         logger.exception("Failed to notify player tg_id=%s nickname=%s", tg_user_id, nickname)

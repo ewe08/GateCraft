@@ -34,10 +34,13 @@ async def cmd_pending(message: Message, access_service: AccessService, settings:
 
     for req in pending:
         logger.debug("Displaying pending request id=%s nickname=%s", req["id"], req["nickname"])
+        # prefer stored Telegram display name provided at registration
+        tg_user = req.get("tg_username") or str(req["tg_user_id"])
+
         await message.answer(
             NEW_REQUEST_TEXT.format(
                 nickname=req["nickname"],
-                tg_user_id=req["tg_user_id"],
+                tg_user=tg_user,
                 request_id=req["id"],
             ),
             reply_markup=approval_keyboard(req["id"]),

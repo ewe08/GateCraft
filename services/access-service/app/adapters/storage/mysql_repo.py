@@ -6,12 +6,12 @@ class MySQLRepo:
     def __init__(self, pool: aiomysql.Pool):
         self.pool = pool
 
-    async def create_request(self, tg_user_id: int, nickname: str) -> dict:
+    async def create_request(self, tg_user_id: int, nickname: str, tg_username: str | None = None) -> dict:
         async with self.pool.acquire() as conn:
             async with conn.cursor(aiomysql.DictCursor) as cur:
                 # 1) Check current user status first
                 await cur.execute(
-                    "SELECT tg_user_id, nickname, status FROM users WHERE tg_user_id=%s",
+                    "SELECT tg_user_id, tg_username, nickname, status FROM users WHERE tg_user_id=%s",
                     (tg_user_id,),
                 )
                 user = await cur.fetchone()
@@ -19,16 +19,26 @@ class MySQLRepo:
                 # If already approved, do not downgrade to pending
                 if user and user["status"] == "approved":
                     # Optionally update nickname, but keep approved
+                    updates = []
+                    params = []
                     if user["nickname"] != nickname:
+                        updates.append("nickname=%s")
+                        params.append(nickname)
+                    if tg_username and user.get("tg_username") != tg_username:
+                        updates.append("tg_username=%s")
+                        params.append(tg_username)
+                    if updates:
+                        params.append(tg_user_id)
                         await cur.execute(
-                            "UPDATE users SET nickname=%s WHERE tg_user_id=%s",
-                            (nickname, tg_user_id),
+                            f"UPDATE users SET {', '.join(updates)} WHERE tg_user_id=%s",
+                            tuple(params),
                         )
                         await conn.commit()
                     return {
                         "id": None,
                         "tg_user_id": tg_user_id,
                         "nickname": nickname,
+                        "tg_username": tg_username,
                         "status": "approved",
                     }
 
@@ -43,24 +53,25 @@ class MySQLRepo:
 
                 # 3) Create a new pending request
                 await cur.execute(
-                    "INSERT INTO requests (tg_user_id, nickname, status) VALUES (%s, %s, 'pending')",
-                    (tg_user_id, nickname),
+                    "INSERT INTO requests (tg_user_id, tg_username, nickname, status) VALUES (%s, %s, %s, 'pending')",
+                    (tg_user_id, tg_username, nickname),
                 )
                 request_id = cur.lastrowid
 
                 # 4) Upsert user row, but never downgrade approved
                 await cur.execute(
                     """
-                    INSERT INTO users (tg_user_id, nickname, status)
-                    VALUES (%s, %s, 'pending') AS new
+                    INSERT INTO users (tg_user_id, tg_username, nickname, status)
+                    VALUES (%s, %s, %s, 'pending') AS new
                     ON DUPLICATE KEY UPDATE
+                        tg_username = COALESCE(new.tg_username, users.tg_username),
                         nickname = new.nickname,
                         status = CASE
                             WHEN users.status = 'approved' THEN users.status
                             ELSE 'pending'
                         END
                     """,
-                    (tg_user_id, nickname),
+                    (tg_user_id, tg_username, nickname),
                 )
 
                 await conn.commit()

@@ -4,6 +4,7 @@ from aiogram.types import CallbackQuery
 
 from app.domain.access_service import AccessService
 from app.adapters.telegram.notifier import Notifier
+from app.bots.player.ui.messages import NOTIFY_REJECTED_TEXT
 
 router = Router(name="admin_reject")
 logger = logging.getLogger("gatecraft.admin")
@@ -28,7 +29,7 @@ async def cb_reject(callback: CallbackQuery,
 
     # notify player about rejection
     try:
-        await notifier.player_rejected(tg_user_id, nickname)
+        await notifier.notify_player(tg_user_id, NOTIFY_REJECTED_TEXT.format(nickname=nickname))
         logger.debug("Player rejection notification sent to tg_user_id=%s for nickname=%s", tg_user_id, nickname)
     except Exception:
         logger.exception("Failed to notify player about rejection tg_id=%s nickname=%s", tg_user_id, nickname)

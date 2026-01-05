@@ -56,9 +56,18 @@ async def handle_registration(message: Message, nickname: str, access_service: A
         logger.warning("User %s provided invalid nickname=%s", user_id, nickname)
         return await message.answer(INVALID_NICK_TEXT)
 
+    # determine telegram display name: prefer @username, else full name
+    username = getattr(message.from_user, "username", None)
+    if username:
+        tg_display = f"@{username}"
+    else:
+        name_parts = [getattr(message.from_user, "first_name", ""), getattr(message.from_user, "last_name", "")]
+        full_name = " ".join(p for p in name_parts if p).strip()
+        tg_display = full_name if full_name else str(user_id)
+
     try:
-        logger.debug("Submitting registration request for user_id=%s nickname=%s", user_id, nickname)
-        await access_service.register(user_id, nickname)
+        logger.debug("Submitting registration request for user_id=%s nickname=%s tg_user=%s", user_id, nickname, tg_display)
+        await access_service.register(user_id, nickname, tg_display)
     except Exception as e:
         logger.exception("Registration failed for user_id=%s nickname=%s: %s", user_id, nickname, e)
         return await message.answer(SERVICE_UNAVAILABLE_TEXT)

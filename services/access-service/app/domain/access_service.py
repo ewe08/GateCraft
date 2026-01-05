@@ -2,8 +2,8 @@ class AccessService:
     def __init__(self, repo):
         self.repo = repo
 
-    async def register(self, tg_user_id: int, nickname: str) -> dict:
-        return await self.repo.create_request(tg_user_id, nickname)
+    async def register(self, tg_user_id: int, nickname: str, tg_username: str | None = None) -> dict:
+        return await self.repo.create_request(tg_user_id, nickname, tg_username)
 
     async def approve(self, request_id: int) -> dict | None:
         return await self.repo.approve_request(request_id)

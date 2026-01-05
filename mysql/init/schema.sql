@@ -1,5 +1,6 @@
 CREATE TABLE IF NOT EXISTS users (
   tg_user_id BIGINT PRIMARY KEY,
+  tg_username VARCHAR(64) NULL,
   nickname VARCHAR(16) NOT NULL,
   status ENUM('pending','approved','rejected') NOT NULL,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -9,6 +10,7 @@ CREATE TABLE IF NOT EXISTS users (
 CREATE TABLE IF NOT EXISTS requests (
   id BIGINT AUTO_INCREMENT PRIMARY KEY,
   tg_user_id BIGINT NOT NULL,
+  tg_username VARCHAR(64) NULL,
   nickname VARCHAR(16) NOT NULL,
   status ENUM('pending','approved','rejected') NOT NULL,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,

@@ -1,7 +1,7 @@
 NEW_REQUEST_TEXT = (
     "🧾 <b>New registration request</b>\n"
     "Nickname: <code>{nickname}</code>\n"
-    "User ID: <code>{tg_user_id}</code>\n"
+    "User: <code>{tg_user}</code>\n"
     "Request ID: <code>{request_id}</code>"
 )
 
