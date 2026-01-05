@@ -20,6 +20,7 @@ async def _run_player_bot(token: str):
 
     dp["access_service"] = get_access_service()
     dp["settings"] = load_settings()
+    dp["rcon"] = get_rcon()
 
     logger.info("Run polling for player bot...")
     await dp.start_polling(bot)

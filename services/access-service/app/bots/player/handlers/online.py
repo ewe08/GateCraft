@@ -4,6 +4,7 @@ from aiogram.filters import Command
 from aiogram.types import Message
 
 from app.container import access_service
+from app.adapters.rcon.service import RCONService
 from ..ui.messages import ONLINE_EMPTY_TEXT, ONLINE_FORMAT_TEXT
 
 router = Router(name="player_online")
@@ -11,13 +12,29 @@ logger = logging.getLogger("gatecraft.player")
 
 
 @router.message(Command("online"))
-async def cmd_online(message: Message):
+async def cmd_online(message: Message, rcon: RCONService):
     user_id = message.from_user.id
     logger.info("User %s requested /online", user_id)
-    
-    players = await access_service.get_online()
-    logger.debug("Retrieved %d online players", len(players) if players else 0)
-    
+
+    # Try to get online players via RCON
+    players = None
+    try:
+        resp = await rcon.list_online()
+        logger.debug("RCON list response: %s", resp)
+        # parse typical Minecraft 'list' response: "There are X of a max of Y players online: name1, name2"
+        text_part = resp.partition(":")[2].strip()
+        if not text_part:
+            players = []
+        else:
+            players = [p.strip() for p in text_part.split(",") if p.strip()]
+    except Exception:
+        logger.exception("RCON list failed, falling back to access_service")
+        try:
+            players = await access_service.get_online()
+        except Exception:
+            logger.exception("Failed to get online players from access_service")
+            players = None
+
     if not players:
         logger.debug("No online players for user_id=%s", user_id)
         return await message.answer(ONLINE_EMPTY_TEXT)
